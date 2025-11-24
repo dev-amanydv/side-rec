@@ -15,7 +15,7 @@ export function LampDemo() {
           duration: 0.8,
           ease: "easeInOut",
         }}
-        className="mt-0 bg-gradient-to-br from-slate-300 to-slate-500 py-2 bg-clip-text text-center text-4xl font-medium tracking-tight text-transparent md:text-7xl"
+        className="-mt-40 bg-gradient-to-br from-slate-300 to-slate-500 py-2 bg-clip-text text-center text-4xl font-medium tracking-tight text-transparent md:text-7xl"
       >
         Start. Record. Replay.
       </motion.h1>
@@ -24,7 +24,7 @@ export function LampDemo() {
           initial={{ y: 110 }}
           animate={{ y: [110, 90, 110] }}
           transition={{ duration: 2, repeat: Infinity }}
-          className="text-xl font-semibold bg-gray-950 border-[1px] hover:bg-cyan-600/20 transition-colors  border-cyan-500  cursor-pointer text-cyan-100 px-7 rounded-4xl py-3"
+          className="text-xl font-semibold -mt-90 bg-gray-950 border-[1px] hover:bg-cyan-600/20 transition-colors  border-cyan-500  cursor-pointer text-cyan-100 px-7 rounded-4xl py-3"
         >
           Start Today!
         </motion.button>
@@ -43,7 +43,7 @@ export const LampContainer = ({
   return (
     <div
       className={cn(
-        "relative flex min-h-[700px] flex-col items-center justify-center overflow-hidden bg-slate-950 max-w-7xl mx-auto rounded-3xl z-0",
+        "relative flex min-h-[600px] flex-col items-center justify-center overflow-hidden bg-slate-950 max-w-7xl mx-auto rounded-3xl z-0",
         className
       )}
     >

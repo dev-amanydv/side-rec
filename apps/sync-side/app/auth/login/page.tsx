@@ -30,7 +30,7 @@ export default function LoginForm() {
 
   const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
-    setLog(""); // Clear previous logs
+    setLog(""); 
 
     try {
       const res = await signIn("credentials", {
@@ -43,7 +43,6 @@ export default function LoginForm() {
         reset();
         router.push("/dashboard");
       } else {
-        // This logic correctly displays the error you want.
         if (res?.error === "CredentialsSignin") {
           setLog("Invalid email or password");
         } else {

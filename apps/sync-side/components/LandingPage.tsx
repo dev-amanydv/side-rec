@@ -4,6 +4,8 @@ import Hero from './Hero'
 import Features from './Features'
 import CTA from './CTA'
 import Ending from './Ending'
+import Testimonials from './Testimonials'
+import Footer from './Footer'
 
 const LandingPage = () => {
   return (
@@ -16,8 +18,11 @@ const LandingPage = () => {
         <Navbar/>
         <Hero/>
         <Features/>
+        <Testimonials/>
         <CTA/>
+        <Footer/>
         <Ending/>
+
       </div>
     </div>
   )
