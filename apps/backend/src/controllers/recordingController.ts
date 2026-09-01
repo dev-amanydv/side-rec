@@ -1,35 +1,50 @@
 import { Request, Response } from "express";
-import path from "path";
-import { fileURLToPath } from "url";
-import fs from "fs";
+import { prisma } from "../lib/prisma.js";
+import { presignRecording } from "../services/storage.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const rootPath = path.join(__dirname, "..", "..");
+// Redirects to a freshly presigned R2 URL for the meeting's recording. The DB
+// stores this stable endpoint as the recording URL so playback/download/share
+// links never expire, while the object itself stays private on R2.
+export const streamRecordingFile = async (req: Request, res: Response): Promise<void> => {
+  const { meetingId } = req.params;
+  const download = req.query.download ? `${String(meetingId)}.mp4` : undefined;
+  try {
+    const signed = await presignRecording(String(meetingId), download);
+    if (!signed) {
+      res.status(404).json({ error: "Recording not available" });
+      return;
+    }
+    res.redirect(302, signed);
+  } catch (error) {
+    console.error("Error presigning recording:", error);
+    res.status(500).json({ error: "Failed to load recording" });
+  }
+};
 
-export const getMergedRecording = ( req: Request, res: Response): void => {
-    const { meetingId } = req.params;
-    
-    if (!meetingId){
-        res.status(400).json({
-            error: "missing meetingId"
-        })
-        return;
+// Recording status/URL for a meeting — polled by the post-meeting screen.
+export const getRecording = async (req: Request, res: Response): Promise<void> => {
+  const { meetingId } = req.params;
+
+  try {
+    const meeting = await prisma.meeting.findUnique({
+      where: { meetingId: String(meetingId) },
+      include: { recording: true },
+    });
+
+    if (!meeting) {
+      res.status(404).json({ error: "Meeting not found" });
+      return;
     }
 
-    const mergedDir = path.join(rootPath, "merged");
-    const mergedFile = path.join(mergedDir, `${meetingId}-final.mp4`);
-
-    if (!fs.existsSync(mergedFile)){
-        res.status(400).json({
-            error: "Merged file not found"
-        })
-        return ;
+    if (!meeting.recording) {
+      res.status(200).json({ recording: null });
+      return;
     }
-    res.sendFile(mergedFile, {
-        headers: {
-          "Content-Type": "video/mp4",
-          "Cross-Origin-Resource-Policy": "cross-origin"
-        }
-      });
+
+    const { status, url, durationMs, updatedAt } = meeting.recording;
+    res.status(200).json({ recording: { status, url, durationMs, updatedAt } });
+  } catch (error) {
+    console.error("Error fetching recording:", error);
+    res.status(500).json({ error: "Failed to fetch recording" });
+  }
 };

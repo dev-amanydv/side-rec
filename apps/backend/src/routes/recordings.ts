@@ -1,9 +1,10 @@
 import express from "express";
-import { getMergedRecording } from "../controllers/recordingController.js";
+import { getRecording, streamRecordingFile } from "../controllers/recordingController.js";
 
 const router = express.Router();
 
-router.get("/:meetingId", getMergedRecording);
+// Stable, non-expiring URL that 302-redirects to a presigned R2 object.
+router.get("/file/:meetingId", streamRecordingFile);
+router.get("/:meetingId", getRecording);
 
 export default router;
-

@@ -1,9 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
@@ -15,7 +15,7 @@ const LoginSchema = z.object({
 
 type LoginFormData = z.infer<typeof LoginSchema>;
 
-export default function LoginForm() {
+function LoginForm() {
   const {
     register,
     handleSubmit,
@@ -27,10 +27,19 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [log, setLog] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Where to land after login (e.g. a meeting link the user was invited to).
+  // Only same-origin relative paths are honored.
+  const rawCallback = searchParams.get("callbackUrl");
+  const callbackUrl =
+    rawCallback && rawCallback.startsWith("/") && !rawCallback.startsWith("//")
+      ? rawCallback
+      : "/dashboard";
 
   const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
-    setLog(""); 
+    setLog("");
 
     try {
       const res = await signIn("credentials", {
@@ -41,7 +50,7 @@ export default function LoginForm() {
 
       if (res?.ok) {
         reset();
-        router.push("/dashboard");
+        router.push(callbackUrl);
       } else {
         if (res?.error === "CredentialsSignin") {
           setLog("Invalid email or password");
@@ -58,100 +67,107 @@ export default function LoginForm() {
   };
 
   return (
-    <div className={`h-screen w-screen grid grid-cols-1 md:grid-cols-2`}>
-      <div
-        className={`col-span-1 h-screen relative flex justify-center items-center w-full`}
-        style={{
-          background:
-            "radial-gradient(ellipse 100% 100% at 50% 0%, #23323A, transparent 90%), #000000",
-        }}
-      >
+    <div className="grid min-h-screen w-full grid-cols-1 bg-[#08090A] text-[#F7F8F8] antialiased md:grid-cols-2">
+      <div className="lobby-grid-wrap relative col-span-1 flex w-full items-center justify-center overflow-hidden px-5 py-10">
+        <div className="lobby-grid pointer-events-none absolute inset-0 opacity-60" />
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-1/2"
+          style={{
+            background:
+              "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(94,106,210,0.16), transparent 80%)",
+          }}
+        />
         <form
           onSubmit={handleSubmit(onSubmit)}
-          className="max-w-lg w-full flex justify-center gap-20 items-center flex-col mx-auto relative px-5 py-5 rounded-2xl shadow space-y-4"
+          className="lobby-rise relative z-10 w-full max-w-sm"
         >
-          <div>
-            <div className="flex flex-col justify-center gap-2 items-center">
-              <h1 className="text-xl text-gray-300">Welcome Back!</h1>
-              <Image src={"/logo.svg"} width={400} height={200} alt="logo" />
-            </div>
-            <div className="w-full max-w-lg flex flex-col gap-5">
-              {/* Email */}
-              <div>
-                <label className="block text-sm text-gray-300 font-medium">
-                  Email
-                </label>
-                <input
-                  disabled={loading}
-                  autoFocus
-                  autoComplete="email"
-                  {...register("email")}
-                  className="mt-1 text-gray-300 border-gray-300 w-full border p-2 rounded-lg"
-                  placeholder="Enter your email"
-                />
-                {errors.email && (
-                  <p className="text-red-500 text-sm">{errors.email.message}</p>
-                )}
-              </div>
+          <div className="mb-8 flex flex-col items-center gap-3">
+            <Image src={"/logo.svg"} width={200} height={80} alt="logo" className="h-9 w-auto" />
+            <h1 className="text-[15px] text-[#8A8F98]">Welcome back</h1>
+          </div>
 
-              {/* Password */}
-              <div>
-                <label className="block text-sm text-gray-300 font-medium">
-                  Password
-                </label>
-                <input
-                  disabled={loading}
-                  type="password"
-                  autoComplete="current-password"
-                  {...register("password")}
-                  className="mt-1 text-gray-300 border-gray-300 w-full border p-2 rounded-lg"
-                  placeholder="Enter password"
-                />
-                {errors.password && (
-                  <p className="text-red-500 text-sm">
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
-
-              <button
-                type="submit"
+          <div className="flex w-full flex-col gap-4">
+            {/* Email */}
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-[#D0D3D9]">Email</label>
+              <input
                 disabled={loading}
-                className="w-full font-medium mt-5 bg-white text-black py-2 rounded hover:bg-gray-400 transition"
-              >
-                {loading ? "Logging in..." : "Login"}
-              </button>
-              <p role="alert" className="text-red-500 text-center h-5">
-                {log}
-              </p>
+                autoFocus
+                autoComplete="email"
+                {...register("email")}
+                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-[14px] text-[#F7F8F8] placeholder:text-[#5C616B] outline-none transition-colors focus:border-[#5E6AD2] disabled:opacity-50"
+                placeholder="you@example.com"
+              />
+              {errors.email && (
+                <p className="mt-1 text-[12px] text-[#EB5757]">{errors.email.message}</p>
+              )}
             </div>
 
-            <div className="border-[1px] border-gray-400 my-5 mx-10"></div>
-            <button
-              type="button"
-              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-              className="flex items-center w-full justify-center gap-3 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-medium py-2 px-4 rounded-md shadow-sm transition"
-            >
-              <Image
-                src={"/Google-logo.svg"}
-                width={25}
-                height={50}
-                alt="logo"
+            {/* Password */}
+            <div>
+              <label className="mb-1.5 block text-[13px] font-medium text-[#D0D3D9]">Password</label>
+              <input
+                disabled={loading}
+                type="password"
+                autoComplete="current-password"
+                {...register("password")}
+                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-[14px] text-[#F7F8F8] placeholder:text-[#5C616B] outline-none transition-colors focus:border-[#5E6AD2] disabled:opacity-50"
+                placeholder="Enter password"
               />
-              <h1>Sign in with Google</h1>
-            </button>
-            <div className="text-white text-center mt-10 mx-auto">
-              Don&apos;t have an account?{" "}
-              <Link href={"/auth/signup"}>
-                <button className="font-bold text-blue-700">Signup</button>
-              </Link>
+              {errors.password && (
+                <p className="mt-1 text-[12px] text-[#EB5757]">{errors.password.message}</p>
+              )}
             </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-[#5E6AD2] text-[14px] font-medium text-white transition-colors hover:bg-[#6E79D6] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loading ? "Logging in…" : "Login"}
+            </button>
+            <p role="alert" className="h-5 text-center text-[12px] text-[#EB5757]">
+              {log}
+            </p>
+          </div>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/[0.08]" />
+            <span className="text-[12px] text-[#5C616B]">or</span>
+            <div className="h-px flex-1 bg-white/[0.08]" />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => signIn("google", { callbackUrl })}
+            className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-2.5 text-[14px] font-medium text-[#D0D3D9] transition-colors hover:bg-white/[0.05]"
+          >
+            <Image src={"/Google-logo.svg"} width={20} height={20} alt="Google" />
+            Sign in with Google
+          </button>
+
+          <div className="mt-8 text-center text-[13px] text-[#8A8F98]">
+            Don&apos;t have an account?{" "}
+            <Link
+              href={`/auth/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+              className="font-medium text-[#8C93E8] transition-colors hover:text-[#A6ABEE]"
+            >
+              Sign up
+            </Link>
           </div>
         </form>
       </div>
-      <div
-        className={`md:col-span-1 bg-[url('/quote.jpg')] bg-no-repeat bg-center bg-cover`}
-      ></div>
+      <div className="relative col-span-1 hidden bg-[url('/quote.jpg')] bg-cover bg-center bg-no-repeat md:block">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#08090A] via-transparent to-transparent opacity-70" />
+      </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

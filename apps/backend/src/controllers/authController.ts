@@ -33,6 +33,7 @@ console.log("Fullname: ", fullname, "Email: ", email, "Password: ", password)
 
     res.status(201).json({ token, user: { id: user.id, email: user.email } });
   } catch (err) {
+    console.log(err)
     res.status(500).json({ error: "Internal Server Error" });
   }
 };

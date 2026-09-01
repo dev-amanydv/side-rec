@@ -8,9 +8,11 @@ datasource db {
 }
 
 enum RecordingStatus {
+  recording
   uploading
   processing
   available
+  failed
 }
 
 model User {
@@ -23,6 +25,7 @@ model User {
   updatedAt         DateTime      @updatedAt
   meetingsHosted    Meeting[]     @relation("Meeting_host")
   participants      Participant[]
+  feedbacks         Feedback[]
 }
 
 model Meeting {
@@ -37,6 +40,8 @@ model Meeting {
   mergedPath        String?
   durationMs        Int?
   recorded          Boolean        @default(false)
+  recording         Recording?
+  feedbacks         Feedback[]
 }
 
 model Participant {
@@ -49,4 +54,30 @@ model Participant {
   leftAt            DateTime?
 
   @@id([userId, meetingNoId])
+}
+
+model Recording {
+  id                Int             @id @default(autoincrement())
+  meetingNoId       Int             @unique
+  meeting           Meeting         @relation(fields: [meetingNoId], references: [id])
+  status            RecordingStatus @default(recording)
+  url               String?
+  durationMs        Int?
+  bytes             Int?
+  error             String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model Feedback {
+  id                Int      @id @default(autoincrement())
+  meetingNoId       Int
+  userId            Int
+  rating            Int
+  comment           String?
+  createdAt         DateTime @default(now())
+  meeting           Meeting  @relation(fields: [meetingNoId], references: [id])
+  user              User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, meetingNoId])
 }

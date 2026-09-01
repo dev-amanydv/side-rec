@@ -1,28 +1,11 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
-import dns from "dns";
-
-const isConnectedToInternet = async (): Promise<boolean> => {
-  return new Promise((resolve) => {
-    dns.lookup("google.com", (err) => {
-      resolve(!err);
-    });
-  });
-};
+import { prisma } from "../lib/prisma.js";
 
 export const createMeeting = async (req: Request, res: Response): Promise<void> => {
   const { title, description, meetingId, hostId } = req.body;
-console.log("title: ", title, "description: ", description, "meetingId: ", meetingId, "hostId: ", hostId)
-  if (!title || !hostId) {
-    console.log("Title and hostId are required")
-    res.status(400).json({ error: "Title and hostId are required" });
-    return;
-  }
 
-  if (!(await isConnectedToInternet())) {
-    console.log("Not connected to internet")
-    res.status(503).json({ error: "No internet connection" });
+  if (!title || !hostId) {
+    res.status(400).json({ error: "Title and hostId are required" });
     return;
   }
 
@@ -35,10 +18,9 @@ console.log("title: ", title, "description: ", description, "meetingId: ", meeti
         host: { connect: { id: Number(hostId) } },
       },
     });
-console.log("meeting created: ", meeting)
     res.status(201).json({ message: "Meeting created", meeting });
   } catch (error) {
-    console.log("Error creating meeting: ", error)
+    console.error("Error creating meeting:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -48,12 +30,6 @@ export const getMeetingHistory = async (req: Request, res: Response): Promise<vo
 
   if (!userId) {
     res.status(400).json({ error: "User ID is required" });
-    return;
-  }
-
-  if (!(await isConnectedToInternet())) {
-    console.log("no internet")
-    res.status(503).json({ error: "No internet connection" });
     return;
   }
 
@@ -67,33 +43,28 @@ export const getMeetingHistory = async (req: Request, res: Response): Promise<vo
       },
       include: {
         host: true,
+        recording: true,
         participants: {
           include: {
             user: true,
           },
         },
       },
+      orderBy: { createdAt: "desc" },
     });
 
     res.status(200).json({ meetings });
   } catch (error) {
-    console.log("Error getting history: ", error)
+    console.error("Error getting history:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
 export const joinMeeting = async (req: Request, res: Response): Promise<void> => {
-  console.log("recieved request for joining")
   const { meetingId, userId } = req.body;
-  console.log("meetingId: ", meetingId, " userId joined: ", userId)
 
   if (!meetingId || !userId) {
     res.status(400).json({ error: "Meeting ID and User ID are required" });
-    return;
-  }
-
-  if (!(await isConnectedToInternet())) {
-    res.status(503).json({ error: "No internet connection" });
     return;
   }
 
@@ -124,22 +95,43 @@ export const joinMeeting = async (req: Request, res: Response): Promise<void> =>
 
     res.status(200).json({ message: "User added to meeting" });
   } catch (error) {
-    console.log("Error joining meeting: ", error)
+    console.error("Error joining meeting:", error);
     res.status(500).json({ error: "Failed to join meeting" });
+  }
+};
+
+// Total R2 storage (in bytes) occupied by the user's own meeting recordings.
+// Storage is charged to the host, so we sum recordings for meetings they host.
+export const getStorageUsage = async (req: Request, res: Response): Promise<void> => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    res.status(400).json({ error: "User ID is required" });
+    return;
+  }
+
+  try {
+    const [agg, count] = await Promise.all([
+      prisma.recording.aggregate({
+        _sum: { bytes: true },
+        where: { meeting: { hostId: Number(userId) }, status: "available" },
+      }),
+      prisma.recording.count({
+        where: { meeting: { hostId: Number(userId) }, status: "available" },
+      }),
+    ]);
+    res.status(200).json({ bytes: agg._sum.bytes ?? 0, recordings: count });
+  } catch (error) {
+    console.error("Error getting storage usage:", error);
+    res.status(500).json({ error: "Failed to fetch storage usage" });
   }
 };
 
 export const getMeetingById = async (req: Request, res: Response): Promise<void> => {
   const { meetingId } = req.params;
-console.log("requesthitted with meetingId: ", meetingId)
+
   if (!meetingId) {
     res.status(400).json({ error: "Meeting ID is required" });
-    return;
-  }
-
-  if (!(await isConnectedToInternet())) {
-    console.log("no internet ")
-    res.status(503).json({ error: "No internet connection" });
     return;
   }
 
@@ -148,6 +140,7 @@ console.log("requesthitted with meetingId: ", meetingId)
       where: { meetingId: meetingId },
       include: {
         host: true,
+        recording: true,
         participants: {
           include: {
             user: true,
@@ -162,33 +155,7 @@ console.log("requesthitted with meetingId: ", meetingId)
     }
     res.status(200).json({ meeting });
   } catch (error) {
-    console.log("Error getting meeting detailes: ", error);
+    console.error("Error getting meeting details:", error);
     res.status(500).json({ error: "Failed to fetch meeting" });
-  }
-};
-
-export const saveRecording = async (req: Request, res: Response): Promise<void> => {
-  const { meetingId, NEXT_PUBLIC_BACKEND_URL } = req.body;
-console.log("requesthitted RECORDING with meetingId: ", meetingId)
-  if (!meetingId || !NEXT_PUBLIC_BACKEND_URL) {
-    res.status(400).json({ error: "Meeting ID and backend url is required" });
-    return;
-  }
-
-console.log("updating recording status")
-  try {
-    const meeting = await prisma.meeting.update({
-      where: { meetingId: meetingId },
-      data: {
-        recorded: true,
-        mergedPath: `${NEXT_PUBLIC_BACKEND_URL}/api/recordings/${meetingId}`
-      }
-    });
-console.log("updated recording status")
-console.log("meeting:", meeting)
-    res.status(200).json({ meeting });
-  } catch (error) {
-    console.log("Error in updating recording status: ", error);
-    res.status(500).json({ error: "Failed to update recording status" });
   }
 };

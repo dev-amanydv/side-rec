@@ -63,10 +63,7 @@ const AccountPage = () => {
   // Fetch stats
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!userId) {
-        console.log('userId is required:', userId);
-        return;
-      }
+      if (!userId) return;
 
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/stats`, {
@@ -76,7 +73,6 @@ const AccountPage = () => {
         });
 
         const data = await res.json();
-        console.log('data of stats: ', data);
 
         setStats({
           email: data.user.email,
@@ -128,47 +124,36 @@ const AccountPage = () => {
     }
   };
 
+  const cardClass =
+    "rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6";
+  const inputClass =
+    "w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-[14px] text-[#F7F8F8] placeholder:text-[#5C616B] outline-none transition-colors focus:border-[#5E6AD2]";
+
   if (loading) {
     return (
-      <div className="p-8 bg-[#000] min-h-screen text-gray-200 animate-pulse">
-        <h1 className="text-2xl font-semibold mb-2 bg-gray-700 rounded w-40 h-6"></h1>
-        <p className="text-gray-500 mb-6 bg-gray-800 rounded w-72 h-4"></p>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Form Skeleton */}
-          <div className="col-span-2 bg-[#0A0A0A] p-6 rounded-lg border border-[#2C2C2C] space-y-4">
-            <div className="h-5 bg-gray-700 rounded w-56"></div>
-            <div className="space-y-4">
-              <div className="h-4 bg-gray-600 rounded w-24"></div>
-              <div className="h-10 bg-gray-800 rounded"></div>
-
-              <div className="h-4 bg-gray-600 rounded w-24"></div>
-              <div className="h-10 bg-gray-800 rounded"></div>
-
-              <div className="h-4 bg-gray-600 rounded w-24"></div>
-              <div className="h-10 bg-gray-800 rounded"></div>
-
-              <div className="h-9 bg-gray-700 rounded w-36"></div>
-            </div>
+      <div className="mx-auto max-w-7xl animate-pulse px-4 py-6 md:px-6">
+        <div className="mb-2 h-7 w-40 rounded bg-white/[0.06]" />
+        <div className="mb-8 h-4 w-72 rounded bg-white/[0.04]" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="space-y-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 lg:col-span-2">
+            <div className="h-5 w-56 rounded bg-white/[0.06]" />
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 w-24 rounded bg-white/[0.05]" />
+                <div className="h-10 rounded bg-white/[0.04]" />
+              </div>
+            ))}
+            <div className="h-10 w-36 rounded bg-white/[0.06]" />
           </div>
-
-          {/* Right Side Skeleton */}
           <div className="space-y-6">
-            {/* Profile Picture Skeleton */}
-            <div className="bg-[#0A0A0A] p-6 rounded-lg border border-[#2C2C2C] text-center space-y-4">
-              <div className="h-5 bg-gray-700 rounded w-40 mx-auto"></div>
-              <div className="w-20 h-20 mx-auto bg-gray-800 rounded-full"></div>
-              <div className="h-9 bg-gray-700 rounded w-full"></div>
-              <div className="h-4 bg-gray-800 rounded w-1/2 mx-auto"></div>
+            <div className="space-y-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-center">
+              <div className="mx-auto h-20 w-20 rounded-full bg-white/[0.05]" />
             </div>
-
-            {/* Stats Skeleton */}
-            <div className="bg-[#0A0A0A] p-6 rounded-lg border border-[#2C2C2C] space-y-4">
-              <div className="h-5 bg-gray-700 rounded w-32"></div>
-              {[...Array(4)].map((_, idx) => (
+            <div className="space-y-4 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6">
+              {[...Array(3)].map((_, idx) => (
                 <div className="flex justify-between" key={idx}>
-                  <div className="h-4 bg-gray-600 rounded w-32"></div>
-                  <div className="h-4 bg-gray-800 rounded w-12"></div>
+                  <div className="h-4 w-32 rounded bg-white/[0.05]" />
+                  <div className="h-4 w-12 rounded bg-white/[0.04]" />
                 </div>
               ))}
             </div>
@@ -179,52 +164,62 @@ const AccountPage = () => {
   }
 
   return (
-    <div className="p-8 bg-[#000] min-h-screen text-gray-200">
-      <h1 className="text-2xl font-semibold mb-2">Profile</h1>
-      <p className="text-gray-500 mb-6">Manage your account settings and preferences</p>
+    <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+      <div className="mb-8">
+        <h1 className="text-xl font-semibold tracking-[-0.01em] md:text-2xl">Profile</h1>
+        <p className="mt-1 text-[13px] text-[#8A8F98] md:text-sm">
+          Manage your account details.
+        </p>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Personal Info Form */}
-        <div className="col-span-2 bg-[#0A0A0A] p-6 rounded-lg border-[1px] border-[#2C2C2C]">
-          <h2 className="text-lg font-medium mb-4">👤 Personal Information</h2>
+        <div className={`${cardClass} lg:col-span-2`}>
+          <h2 className="mb-5 text-[15px] font-medium">Personal Information</h2>
 
           <form className="space-y-4" onSubmit={handleSave}>
             <div>
-              <label className="block text-sm font-medium mb-1">Full Name</label>
+              <label className="mb-1.5 block text-[13px] font-medium text-[#D0D3D9]">
+                Full Name
+              </label>
               <input
                 type="text"
                 value={updateData.fullname}
                 onChange={(e) => setUpdateData((prev) => ({ ...prev, fullname: e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm bg-[#111] text-white"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Email Address</label>
+              <label className="mb-1.5 block text-[13px] font-medium text-[#D0D3D9]">
+                Email Address
+              </label>
               <input
                 type="email"
                 value={updateData.email}
                 onChange={(e) => setUpdateData((prev) => ({ ...prev, email: e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm bg-[#111] text-white"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Member Since</label>
+              <label className="mb-1.5 block text-[13px] font-medium text-[#D0D3D9]">
+                Member Since
+              </label>
               <input
                 type="text"
                 value={stats.createdAt}
                 disabled
-                className="w-full bg-gray-900 text-gray-400 border rounded px-3 py-2 text-sm cursor-not-allowed"
+                className={`${inputClass} cursor-not-allowed text-[#8A8F98] opacity-70`}
               />
             </div>
 
             <button
               type="submit"
               disabled={saving}
-              className="text-gray-900 flex cursor-pointer rounded-md hover:bg-gray-400  gap-2 items-center border-[1px] bg-gray-200 border-[#2C2C2C] px-4 py-1.5"
+              className="flex h-10 items-center justify-center rounded-lg bg-[#5E6AD2] px-5 text-[14px] font-medium text-white transition-colors hover:bg-[#6E79D6] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {saving ? 'Saving...' : 'Save Changes'}
+              {saving ? 'Saving…' : 'Save Changes'}
             </button>
           </form>
         </div>
@@ -232,44 +227,37 @@ const AccountPage = () => {
         {/* Right Side Panels */}
         <div className="space-y-6">
           {/* Profile Picture */}
-          <div className="bg-[#0A0A0A] p-6 rounded-lg border-[1px] border-[#2C2C2C] text-center">
-            <h2 className="text-lg font-semibold mb-4">Profile Picture</h2>
-            <div className="flex justify-center mb-4">
-              <Image
-                src={user.profilePic || '/default-avatar.png'}
-                alt="Profile"
-                width={80}
-                height={80}
-                className="rounded-full object-cover"
-              />
-            </div>
-            <button className="w-full bg-[#0A0A0A] p-6 rounded-lg border-[1px] border-[#2C2C2C] py-2 text-sm hover:bg-gray-800">
-              Change Photo
-            </button>
-            <button className="w-full py-2 text-sm text-red-500 mt-2 hover:underline">
-              Remove Photo
-            </button>
+          <div className={`${cardClass} flex flex-col items-center text-center`}>
+            <Image
+              src={user.profilePic || '/default-avatar.png'}
+              alt="Profile"
+              width={80}
+              height={80}
+              className="rounded-full object-cover"
+            />
+            <p className="mt-3 text-[14px] font-medium text-[#F7F8F8]">
+              {stats.fullname || user.fullname}
+            </p>
+            <p className="mt-0.5 text-[12px] text-[#8A8F98]">{stats.email || user.email}</p>
           </div>
 
           {/* Account Stats */}
-          <div className="bg-[#0A0A0A] p-6 rounded-lg border-[1px] border-[#2C2C2C]">
-            <h2 className="text-lg font-semibold mb-4">Account Stats</h2>
-            <div className="text-sm space-y-2">
+          <div className={cardClass}>
+            <h2 className="mb-4 text-[15px] font-medium">Account Stats</h2>
+            <div className="space-y-3 text-[13px]">
               <div className="flex justify-between">
-                <span>Total Meetings</span>
-                <span className="font-semibold">{stats.meetingsHosted}</span>
+                <span className="text-[#8A8F98]">Meetings Hosted</span>
+                <span className="font-medium text-[#F7F8F8]">{stats.meetingsHosted}</span>
               </div>
               <div className="flex justify-between">
-                <span>Total Participants</span>
-                <span className="font-semibold">{stats.participants}</span>
+                <span className="text-[#8A8F98]">Meetings Joined</span>
+                <span className="font-medium text-[#F7F8F8]">{stats.participants}</span>
               </div>
               <div className="flex justify-between">
-                <span>Storage Used</span>
-                <span className="font-semibold">1.2 GB</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Plan</span>
-                <span className="font-semibold">Free</span>
+                <span className="text-[#8A8F98]">Plan</span>
+                <span className="rounded-full bg-[#5E6AD2]/15 px-2 py-0.5 text-[12px] font-medium text-[#8C93E8]">
+                  Free
+                </span>
               </div>
             </div>
           </div>

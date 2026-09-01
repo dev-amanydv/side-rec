@@ -5,12 +5,15 @@ import { TbLogout } from 'react-icons/tb';
 
 const Logout = () => {
   return (
-    <button  onClick={() => {
+    <button
+      onClick={() => {
         signOut({ callbackUrl: "/auth/login" });
-      }} className="flex cursor-pointer items-center border-[1px] border-[#2C2C2C] hover:bg-[#2C2C2C] text-white px-6 w-50 py-1.5 rounded-md gap-2">
-          <TbLogout className="text-[1.8rem]" />
-          <h1 className="text-[1.0rem]">Logout</h1>
-        </button>
+      }}
+      className="flex w-full cursor-pointer items-center gap-3 rounded-lg border border-white/[0.06] px-4 py-2.5 text-[#D0D3D9] transition-colors hover:bg-white/[0.04] hover:text-white"
+    >
+      <TbLogout className="h-5 w-5 flex-shrink-0" />
+      <span className="text-sm font-medium">Logout</span>
+    </button>
   )
 }
 

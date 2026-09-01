@@ -1,114 +1,109 @@
-'use client'
-import React, { useState } from 'react';
+"use client";
+
+import React, { useEffect, useState } from "react";
+import {
+  loadPreferences,
+  savePreferences,
+  DEFAULT_PREFERENCES,
+  type MeetingPreferences,
+} from "@/lib/preferences";
 
 export default function SettingsPage() {
-  const [theme, setTheme] = useState('dark');
-  const [recordingQuality, setRecordingQuality] = useState('1080p Full HD');
+  const [prefs, setPrefs] = useState<MeetingPreferences>(DEFAULT_PREFERENCES);
+  const [loaded, setLoaded] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  useEffect(() => {
+    setPrefs(loadPreferences());
+    setLoaded(true);
+  }, []);
+
+  // Persist on every change so preferences are always saved — no separate
+  // "Save" button that could leave the UI and storage out of sync.
+  const update = (patch: Partial<MeetingPreferences>) => {
+    setPrefs((prev) => {
+      const next = { ...prev, ...patch };
+      savePreferences(next);
+      return next;
+    });
+    setSavedFlash(true);
+    window.clearTimeout((update as unknown as { _t?: number })._t);
+    (update as unknown as { _t?: number })._t = window.setTimeout(
+      () => setSavedFlash(false),
+      1500
+    );
+  };
+
+  const toggles: {
+    key: keyof MeetingPreferences;
+    title: string;
+    desc: string;
+  }[] = [
+    {
+      key: "autoRecord",
+      title: "Record automatically",
+      desc: "As host, start recording as soon as your guest joins.",
+    },
+    {
+      key: "micOn",
+      title: "Join with microphone on",
+      desc: "Enable your microphone by default when you join a meeting.",
+    },
+    {
+      key: "cameraOn",
+      title: "Join with camera on",
+      desc: "Enable your camera by default when you join a meeting.",
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-[#000] text-white p-8 space-y-6">
-      <h1 className="text-2xl font-semibold mb-2">Settings</h1>
-      <p className="text-gray-500 mb-6">Manage your application preferences and recording settings</p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Appearance */}
-        <div className="bg-[#0A0A0A] border-[1px] border-[#2C2C2C] rounded-xl p-6 space-y-4">
-          <h2 className="text-xl font-bold">Appearance</h2>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Theme</label>
-            <select
-              value={theme}
-              onChange={(e) => setTheme(e.target.value)}
-              className="w-full bg-[#000] text-white border border-gray-600 rounded-md px-4 py-2"
-            >
-              <option value="dark">Dark</option>
-              <option value="light">Light</option>
-            </select>
-          </div>
+    <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+      <div className="mb-8 flex items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-[-0.01em] md:text-2xl">Settings</h1>
+          <p className="mt-1 text-[13px] text-[#8A8F98] md:text-sm">
+            Defaults applied whenever you start or join a meeting.
+          </p>
         </div>
-
-        {/* Recording Settings */}
-        <div className="bg-[#0A0A0A] border-[1px] border-[#2C2C2C] rounded-xl p-6 space-y-4">
-          <h2 className="text-xl font-bold">Recording Settings</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Auto-start recording</p>
-              <p className="text-sm text-gray-400">Automatically start recording when joining a meeting</p>
-            </div>
-            <label className="switch">
-                  <input type="checkbox"/>
-                  <span className="slider"></span>
-              </label>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Recording Quality</label>
-            <select
-              value={recordingQuality}
-              onChange={(e) => setRecordingQuality(e.target.value)}
-              className="w-full bg-[#000] text-white border border-gray-600 rounded-md px-4 py-2"
-            >
-              <option value="1080p Full HD">1080p Full HD</option>
-              <option value="720p HD">720p HD</option>
-              <option value="480p SD">480p SD</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Audio/Video Defaults */}
-        <div className="bg-[#0A0A0A] border-[1px] border-[#2C2C2C] rounded-xl p-6 space-y-4">
-          <h2 className="text-xl font-bold">Audio/Video Defaults</h2>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Microphone on by default</p>
-              <p className="text-sm text-gray-400">Enable microphone when joining meetings</p>
-            </div>
-            <label className="switch">
-                  <input type="checkbox"/>
-                  <span className="slider"></span>
-              </label>
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Camera on by default</p>
-              <p className="text-sm text-gray-400">Enable camera when joining meetings</p>
-            </div>
-              <label className="switch">
-                  <input type="checkbox"/>
-                  <span className="slider"></span>
-              </label>
-          </div>
-        </div>
-
-        {/* Advanced Settings */}
-        <div className="bg-[#0A0A0A] border-[1px] border-[#2C2C2C] rounded-xl p-6 space-y-4">
-          <h2 className="text-xl font-bold">Advanced Settings</h2>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Storage Location</label>
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                value="~/Downloads/SideRec"
-                readOnly
-                className="flex-grow bg-[#000] text-white border border-gray-600 rounded-md px-4 py-2"
-              />
-              <button className="bg-gray-700 px-4 py-2 rounded-md text-white">Change</button>
-            </div>
-          </div>
-          <div className="text-sm text-gray-400 space-y-1">
-            <p>Total recordings: 18</p>
-            <p>Storage used: 1.2 GB</p>
-            <p>Average file size: 67 MB</p>
-          </div>
-          <button className="bg-red-600 hover:bg-red-700 text-white font-medium px-4 py-2 rounded-md">
-            Clear All Recordings
-          </button>
-        </div>
+        <span
+          className={`text-[12px] text-[#4CB782] transition-opacity duration-300 ${
+            savedFlash ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          Saved
+        </span>
       </div>
 
-      <div className="pt-6">
-        <button className="bg-white text-black font-medium px-6 py-2 rounded-md">
-          Save All Settings
-        </button>
+      <div className="max-w-2xl rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2">
+        {toggles.map((t, i) => (
+          <label
+            key={t.key}
+            className={`flex cursor-pointer items-center justify-between gap-4 px-4 py-4 ${
+              i !== toggles.length - 1 ? "border-b border-white/[0.05]" : ""
+            }`}
+          >
+            <div className="min-w-0">
+              <p className="text-[14px] font-medium text-[#F7F8F8]">{t.title}</p>
+              <p className="mt-0.5 text-[12px] leading-snug text-[#8A8F98]">{t.desc}</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={prefs[t.key]}
+              disabled={!loaded}
+              onClick={() => update({ [t.key]: !prefs[t.key] })}
+              className={`relative h-[22px] w-[38px] shrink-0 rounded-full transition-colors ${
+                prefs[t.key] ? "bg-[#5E6AD2]" : "bg-white/[0.12]"
+              }`}
+            >
+              <span
+                className={`absolute top-[3px] h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                  prefs[t.key] ? "translate-x-[19px]" : "translate-x-[3px]"
+                }`}
+              />
+            </button>
+          </label>
+        ))}
       </div>
     </div>
   );

@@ -7,7 +7,8 @@ import { FaUsers, FaPlay } from "react-icons/fa";
 import { FiDownload } from "react-icons/fi";
 import { IoShareSocialSharp } from "react-icons/io5";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { recordingBadge } from "@/lib/meeting/recordingStatus";
+import type { RecordingStatus } from "@/lib/meeting/types";
 
 type Meeting = {
   id: number;
@@ -16,7 +17,11 @@ type Meeting = {
   meetingId: string;
   durationMs: number;
   recorded?: boolean;
+  recording?: { status: RecordingStatus } | null;
   mergedPath: string;
+  host?: {
+    fullname: string;
+  };
   participants: {
     user: {
       fullname: string;
@@ -36,21 +41,14 @@ const RecordingsPage = () => {
     email: "",
     profilePic: "",
   });
-  const [downloadingMeetingId, setDownloadingMeetingId] = useState<
-    number | null
-  >(null);
   const [copiedMeetingId, setCopiedMeetingId] = useState<number | null>(null);
-
-  const router = useRouter();
 
   const filteredMeetings = (meetings || []).filter((meeting) =>
     meeting.title.toLowerCase().includes(search.toLowerCase())
   );
 
   useEffect(() => {
-    console.log("Session ", session);
     if (session?.user) {
-      console.log("Setting user ", session.user);
       setUser({
         userId: session.user.id ?? "",
         fullname: session.user.name ?? "",
@@ -62,87 +60,53 @@ const RecordingsPage = () => {
 
   const userId = user.userId;
 
-  useEffect(() => {
-    const fetchMeetings = async () => {
-      if (!userId) {
-        console.log("userId required to fetch meetings: ", userId);
-        return;
+  const fetchMeetings = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/meeting/history/${userId}`
+      );
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to fetch recordings");
       }
-      try {
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/meeting/history/${userId}`
-        );
-        const data = await res.json();
-        console.log("Fetched meetings:", data);
 
-        if (!res.ok) {
-          throw new Error(data.error || "Failed to fetch recordings");
-        }
-
-        setMeetings(data.meetings || []);
-      } catch (error: unknown) {
-        if ((error as Error).message === "no internet connection") {
-          setErrorMessage(
-            "⚠️ No internet connection. Please check your network."
-          );
-        } else {
-          setErrorMessage("Something went wrong while fetching recordings.");
-        }
-        setMeetings([]);
-      } finally {
-        setLoading(false);
+      setMeetings(data.meetings || []);
+    } catch (error: unknown) {
+      if ((error as Error).message === "no internet connection") {
+        setErrorMessage("⚠️ No internet connection. Please check your network.");
+      } else {
+        setErrorMessage("Something went wrong while fetching recordings.");
       }
-    };
-
-    fetchMeetings();
+      setMeetings([]);
+    } finally {
+      setLoading(false);
+    }
   }, [userId]);
 
-  const handleDownload = useCallback(async (meeting: Meeting) => {
+  useEffect(() => {
+    fetchMeetings();
+  }, [fetchMeetings]);
+
+  // Poll while any recording is still in the pipeline so its badge updates live.
+  const hasTransient = meetings.some((m) => recordingBadge(m).transient);
+  useEffect(() => {
+    if (!hasTransient) return;
+    const id = setInterval(fetchMeetings, 5000);
+    return () => clearInterval(id);
+  }, [hasTransient, fetchMeetings]);
+
+  // The backend file endpoint forces a download when ?download=1 is present,
+  // redirecting to a presigned R2 URL — no CORS/blob juggling needed.
+  const handleDownload = useCallback((meeting: Meeting) => {
     if (!meeting.mergedPath) {
       alert("No recording available for download.");
       return;
     }
-
-    setDownloadingMeetingId(meeting.id); // Set loading state for this specific meeting
-
-    try {
-      // Fetch the video data from the URL
-      const response = await fetch(meeting.mergedPath);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch video: ${response.statusText}`);
-      }
-
-      // Get the video data as a Blob
-      const blob = await response.blob();
-
-      // Create a temporary URL for the Blob
-      const url = window.URL.createObjectURL(blob);
-
-      // Create a temporary anchor element
-      const link = document.createElement("a");
-      link.href = url;
-
-      // Create a clean filename from the meeting title
-      const filename = `${meeting.title.replace(/\s+/g, "_")}.webm`;
-      link.setAttribute("download", filename);
-
-      // Append the link, click it, and then remove it
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      // Clean up by revoking the Object URL
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Download failed:", error);
-      alert(
-        "Could not download the video. Please check the console for more details."
-      );
-    } finally {
-      setDownloadingMeetingId(null); // Reset loading state
-    }
+    const sep = meeting.mergedPath.includes("?") ? "&" : "?";
+    window.location.href = `${meeting.mergedPath}${sep}download=1`;
   }, []);
-  // In your apps/side-rec/app/(dashboard)/dashboard/page.tsx file, after your handleDownload function
 
   const handleShare = useCallback(async (meeting: Meeting) => {
     if (!meeting.mergedPath) {
@@ -179,7 +143,7 @@ const RecordingsPage = () => {
       {errorMessage ===
         "⚠️ No internet connection. Please check your network." && (
         <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-lg bg-black/50 p-4">
-          <div className="bg-[#0A0A0A] border border-[#232323] text-white rounded-xl shadow-lg p-4 md:p-6 w-full max-w-lg md:max-w-xl">
+          <div className="bg-white/[0.02] border border-white/[0.08] text-white rounded-xl shadow-lg p-4 md:p-6 w-full max-w-lg md:max-w-xl">
             <h2 className="text-lg md:text-xl mb-1 font-medium">Error</h2>
             <p className="text-sm text-[#A1A1A1] mb-4">
               Refresh again after fixing connection issue.
@@ -199,7 +163,7 @@ const RecordingsPage = () => {
           {[...Array(3)].map((_, i) => (
             <div
               key={i}
-              className="w-full flex flex-col md:flex-row md:justify-between md:items-start px-4 md:px-5 py-4 md:py-4 rounded-md border border-[#2C2C2C] bg-[#0A0A0A] gap-4"
+              className="w-full flex flex-col md:flex-row md:justify-between md:items-start px-4 md:px-5 py-4 md:py-4 rounded-md border border-white/[0.06] bg-white/[0.02] gap-4"
             >
               <div className="flex flex-col gap-3 w-full">
                 {/* Title and Status */}
@@ -247,16 +211,18 @@ const RecordingsPage = () => {
             <input
               type="text"
               placeholder="Search by title"
-              className="px-4 pr-10 text-gray-400 py-2.5 rounded-full placeholder:text-[#2C2C2C] focus:outline-2 focus:outline-offset-2 focus:outline-gray-500 placeholder:text-sm md:placeholder:text-base border border-[#2C2C2C] w-full"
+              className="px-4 pr-10 text-gray-400 py-2.5 rounded-full placeholder:text-[#2C2C2C] focus:outline-2 focus:outline-offset-2 focus:outline-gray-500 placeholder:text-sm md:placeholder:text-base border border-white/[0.06] w-full"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
             <IoIosSearch className="absolute right-4 top-1/2 -translate-y-1/2 text-xl text-gray-500" />
           </div>
-          {filteredMeetings.map((meeting) => (
+          {filteredMeetings.map((meeting) => {
+            const badge = recordingBadge(meeting);
+            return (
             <div
               key={meeting.id}
-              className="w-full flex flex-col md:flex-row gap-4 px-4 md:px-5 py-4 md:py-5 rounded-md border border-[#2C2C2C] bg-[#0A0A0A] hover:border-[#3C3C3C] transition-colors duration-200"
+              className="w-full flex flex-col md:flex-row gap-4 px-4 md:px-5 py-4 md:py-5 rounded-md border border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] transition-colors duration-200"
             >
               {/* Meeting Info Section */}
               <div className="flex flex-col gap-3 flex-1 min-w-0">
@@ -265,11 +231,14 @@ const RecordingsPage = () => {
                   <h2 className="text-base md:text-lg font-medium text-white truncate">
                     {meeting.title}
                   </h2>
-                  {meeting.recorded ? (
-                    <div className="text-xs px-3 py-1 bg-green-800 text-green-400 rounded-full w-fit">
-                      Recording Available
-                    </div>
-                  ) : null}
+                  <div
+                    className={`text-xs px-3 py-1 rounded-full w-fit flex items-center gap-1.5 ${badge.className}`}
+                  >
+                    {badge.pulse && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
+                    )}
+                    {badge.label}
+                  </div>
                 </div>
 
                 {/* Meeting Details Grid */}
@@ -310,48 +279,32 @@ const RecordingsPage = () => {
                 {/* Host Information */}
                 <div className="text-xs md:text-sm text-[#A3A3A3]">
                   <span className="font-medium">Host:</span>{" "}
-                  {meeting.title || "Unknown"}
-                </div>
-
-                {/* Mobile-only additional info */}
-                <div className="md:hidden text-xs text-[#A3A3A3] pt-2 border-t border-[#2C2C2C]">
-                  <span>Recording ID: {meeting.id}...</span>
+                  {meeting.host?.fullname || "Unknown"}
                 </div>
               </div>
 
               {/* Action Buttons Section */}
-              {meeting.recorded ? (
+              {badge.available ? (
                 <div className="flex gap-2 h-fit my-auto md:gap-2 flex-wrap md:flex-nowrap">
                   <button
-                    onClick={() => {
-                      router.push(meeting.mergedPath);
-                    }}
-                    className="flex cursor-pointer rounded-md hover:bg-[#2C2C2C] gap-2 items-center border border-[#2C2C2C] px-3 md:px-4 py-2 flex-1 md:flex-none justify-center text-sm"
+                    onClick={() =>
+                      window.open(meeting.mergedPath, "_blank", "noopener")
+                    }
+                    className="flex cursor-pointer rounded-md hover:bg-[#2C2C2C] gap-2 items-center border border-white/[0.06] px-3 md:px-4 py-2 flex-1 md:flex-none justify-center text-sm"
                   >
                     <FaPlay className="text-xs" />
                     <span>Play</span>
                   </button>
                   <button
                     onClick={() => handleDownload(meeting)}
-                    disabled={downloadingMeetingId === meeting.id}
-                    className="flex cursor-pointer rounded-md hover:bg-[#2C2C2C] gap-2 items-center border border-[#2C2C2C] px-3 md:px-4 py-2 flex-1 md:flex-none justify-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex cursor-pointer rounded-md hover:bg-[#2C2C2C] gap-2 items-center border border-white/[0.06] px-3 md:px-4 py-2 flex-1 md:flex-none justify-center text-sm"
                   >
-                    {downloadingMeetingId === meeting.id ? (
-                      <>
-                        <span className="animate-spin h-4 w-4 border-b-2 border-white rounded-full"></span>
-                        <span>Downloading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <FiDownload className="text-sm" />
-                        <span className="hidden md:inline">Download</span>
-                        <span className="md:hidden">Download</span>
-                      </>
-                    )}
+                    <FiDownload className="text-sm" />
+                    <span>Download</span>
                   </button>
                   <button
                     onClick={() => handleShare(meeting)}
-                    className={`flex rounded-md cursor-pointer hover:bg-[#2C2C2C] gap-2 items-center border border-[#2C2C2C] px-3 md:px-4 py-2 flex-1 md:flex-none justify-center text-sm transition-colors ${
+                    className={`flex rounded-md cursor-pointer hover:bg-[#2C2C2C] gap-2 items-center border border-white/[0.06] px-3 md:px-4 py-2 flex-1 md:flex-none justify-center text-sm transition-colors ${
                       copiedMeetingId === meeting.id
                         ? "bg-green-700 hover:bg-green-700 text-white"
                         : ""
@@ -370,7 +323,7 @@ const RecordingsPage = () => {
                   </button>
                 </div>
               ) : null}
-              {meeting.recorded ? null : (
+              {badge.available ? null : (
                 <div className="flex gap-2 h-fit my-auto md:gap-2 flex-wrap md:flex-nowrap">
                   <button className="flex bg-gray-500 text-gray-100 opacity-20 cursor-pointer rounded-md  gap-2 items-center   px-3 md:px-4 py-2 flex-1 md:flex-none justify-center text-sm">
                     <FaPlay className="text-xs" />
@@ -388,20 +341,22 @@ const RecordingsPage = () => {
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* Footer info for mobile */}
       {meetings.length > 0 && (
-        <div className="mt-8 md:mt-12 p-4 bg-[#0A0A0A] border border-[#2C2C2C] rounded-md">
+        <div className="mt-8 md:mt-12 p-4 bg-white/[0.02] border border-white/[0.06] rounded-md">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
             <p className="text-xs md:text-sm text-[#A3A3A3]">
-              Showing {meetings.length} recording
+              Showing {meetings.length} meeting
               {meetings.length !== 1 ? "s" : ""}
             </p>
             <p className="text-xs md:text-sm text-[#A3A3A3]">
-              Total storage: Calculating...
+              {meetings.filter((m) => recordingBadge(m).available).length} with
+              recordings
             </p>
           </div>
         </div>
